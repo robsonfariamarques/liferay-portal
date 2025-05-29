@@ -36,8 +36,8 @@ const initializeFields = ({
 	fields: IField[];
 	selectedFields: Array<IField>;
 }): [Set<React.Key>, Array<IFieldTreeItem>] => {
-	const selectedKeys = new Set<React.Key>();
-	const fields: IFieldTreeItem[] = Array.from(initialFields);
+	let selectedKeys = new Set<React.Key>();
+	let fields: IFieldTreeItem[] = Array.from(initialFields);
 
 	visit(fields, (field: IFieldTreeItem) => {
 		const selectedField = selectedFields.find(
@@ -52,6 +52,11 @@ const initializeFields = ({
 
 		field.initialChildren = field.children;
 		field.id = field.name;
+	});
+
+	fields = fields.map(field => {
+		field.disabled = !field.filterable;
+		return field;
 	});
 
 	return [selectedKeys, fields];
@@ -189,6 +194,7 @@ const AddDataSourceFieldsModalContent = ({
 	const [expandedKeys, setExpandedKeys] = useState<Array<React.Key>>([]);
 
 	useEffect(() => {
+		console.log('AddDataSourceFieldsModalContent: fields', fields);
 		if (fields) {
 			const [initialSelectedKeys, updatedFields] = initializeFields({
 				fields,
@@ -197,6 +203,7 @@ const AddDataSourceFieldsModalContent = ({
 
 			setSelectedKeys(initialSelectedKeys);
 
+			console.log('AddDataSourceFieldsModalContent: updatedFields', updatedFields);
 			setFields(updatedFields);
 		}
 

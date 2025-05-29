@@ -39,6 +39,7 @@ interface ISchemas {
 	[key: string]: {
 		properties: IProperties;
 		type: string;
+		["x-filterable"]?: Array<string>;
 	};
 }
 
@@ -63,6 +64,7 @@ function getValidFields({
 	const fields: Array<IField> = [];
 
 	const properties: IProperties = schemas[schemaName]?.properties;
+	const xFilterable: Array<string> = schemas[schemaName]["x-filterable"] || [];
 
 	if (!properties) {
 		return fields;
@@ -79,6 +81,7 @@ function getValidFields({
 				format: propertyValue.format,
 				label: propertyKey,
 				name: `${contextPath}${propertyKey}`,
+				filterable: false,
 				type,
 			};
 
@@ -109,6 +112,7 @@ function getValidFields({
 				if (parentSchemaName) {
 					field.name = `${field.name}${FDS_NESTED_FIELD_NAME_PARENT_SUFFIX}`;
 					field.type = schemas[parentSchemaName]?.type || 'object';
+					field.parentName = parentSchemaName;
 					targetSchemaName = parentSchemaName;
 				}
 			}
@@ -128,6 +132,17 @@ function getValidFields({
 				});
 			}
 
+			if(xFilterable.length > 0) {
+
+				let name = propertyKey;
+
+				if(field.parentName) {
+					name = `${field.parentName}/${name}`;
+				}
+				
+				field.filterable = xFilterable.includes(name); 
+			}
+
 			fields.push(field);
 		});
 
@@ -142,14 +157,15 @@ export default async function getFields({
 	restSchema: string;
 }) {
 	const response = await fetch(`/o${restApplication}/openapi.json`);
-
+	
 	if (!response.ok) {
 		openDefaultFailureToast();
-
+		
 		return [];
 	}
-
+	
 	const responseJSON = await response.json();
+	console.log("getFiels.ts", responseJSON);
 
 	const schemas = responseJSON?.components?.schemas;
 

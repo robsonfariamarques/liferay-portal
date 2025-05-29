@@ -97,10 +97,12 @@ export interface IField {
 	id?: string;
 	label?: string;
 	name: string;
+	parentName?: string;
 	selected?: boolean;
 	sortable?: boolean;
 	type?: string;
 	visible?: boolean;
+	filterable?: boolean;
 }
 
 export interface IFieldTreeItem extends IField {
