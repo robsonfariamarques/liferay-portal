@@ -39,7 +39,7 @@ interface ISchemas {
 	[key: string]: {
 		properties: IProperties;
 		type: string;
-		["x-filterable"]?: Array<string>;
+		['x-filterable']?: Array<string>;
 	};
 }
 
@@ -52,40 +52,51 @@ const validSchemaPropertyFilter = (propertyKey: string) => {
 
 function getValidFields({
 	contextPath,
+	parentPath,
 	schemaName,
 	schemas,
 	visitedFields,
+	xFilterable = [],
 }: {
 	contextPath: string;
+	parentPath?: string;
 	schemaName: string;
 	schemas: ISchemas;
 	visitedFields: string[];
+	xFilterable?: string[];
 }): Array<IField> {
 	const fields: Array<IField> = [];
 
 	const properties: IProperties = schemas[schemaName]?.properties;
-	const xFilterable: Array<string> = schemas[schemaName]["x-filterable"] || [];
 
 	if (!properties) {
 		return fields;
 	}
 
+	if (xFilterable.length) {
+		const parentsFilterable = xFilterable
+			.filter((item) => item.includes('/'))
+			.map((item) => item.split('/')[0]);
+
+		xFilterable = [...xFilterable, ...parentsFilterable];
+	}
+
 	Object.keys(properties)
 		.filter(validSchemaPropertyFilter)
-		.map((propertyKey) => {
+		.forEach((propertyKey) => {
 			const propertyValue = properties[propertyKey];
 
 			const type = propertyValue.type;
 			contextPath = contextPath.replace(/\*/g, '');
 			const field: IField = {
+				filterable: false,
 				format: propertyValue.format,
 				label: propertyKey,
 				name: `${contextPath}${propertyKey}`,
-				filterable: false,
 				type,
 			};
 
-			let targetSchemaName;
+			let targetSchemaName: string | undefined;
 
 			if (propertyValue.items?.$ref) {
 				field.name = `${field.name}${FDS_ARRAY_FIELD_NAME_PARENT_SUFFIX}`;
@@ -111,8 +122,7 @@ function getValidFields({
 
 				if (parentSchemaName) {
 					field.name = `${field.name}${FDS_NESTED_FIELD_NAME_PARENT_SUFFIX}`;
-					field.type = schemas[parentSchemaName]?.type || 'object';
-					field.parentName = parentSchemaName;
+					field.type = schemas[parentSchemaName]?.type ?? 'object';
 					targetSchemaName = parentSchemaName;
 				}
 			}
@@ -124,24 +134,24 @@ function getValidFields({
 				!contextPath.includes(FDS_ARRAY_FIELD_NAME_DELIMITER);
 
 			if (targetSchemaName && !visitedFields.includes(targetSchemaName)) {
+				const fullPath = parentPath
+					? `${parentPath}/${propertyKey}`
+					: propertyKey;
+
 				field.children = getValidFields({
 					contextPath: field.name,
+					parentPath: fullPath,
 					schemaName: targetSchemaName,
 					schemas,
 					visitedFields: [...visitedFields, targetSchemaName],
+					xFilterable,
 				});
 			}
 
-			if(xFilterable.length > 0) {
-
-				let name = propertyKey;
-
-				if(field.parentName) {
-					name = `${field.parentName}/${name}`;
-				}
-				
-				field.filterable = xFilterable.includes(name); 
-			}
+			const fullPath = parentPath
+				? `${parentPath}/${propertyKey}`
+				: propertyKey;
+			field.filterable = xFilterable.includes(fullPath);
 
 			fields.push(field);
 		});
@@ -157,16 +167,14 @@ export default async function getFields({
 	restSchema: string;
 }) {
 	const response = await fetch(`/o${restApplication}/openapi.json`);
-	
+
 	if (!response.ok) {
 		openDefaultFailureToast();
-		
+
 		return [];
 	}
-	
-	const responseJSON = await response.json();
-	console.log("getFiels.ts", responseJSON);
 
+	const responseJSON = await response.json();
 	const schemas = responseJSON?.components?.schemas;
 
 	if (!schemas?.[restSchema]?.properties) {
@@ -175,11 +183,14 @@ export default async function getFields({
 		return [];
 	}
 
+	const xFilterable = schemas[restSchema]['x-filterable'] || [];
+
 	return getValidFields({
 		contextPath: '',
 		schemaName: restSchema,
 		schemas,
 		visitedFields: [],
+		xFilterable,
 	});
 }
 

@@ -52,11 +52,7 @@ const initializeFields = ({
 
 		field.initialChildren = field.children;
 		field.id = field.name;
-	});
 
-	fields = fields.map(field => {
-		field.disabled = !field.filterable;
-		return field;
 	});
 
 	return [selectedKeys, fields];
@@ -194,7 +190,6 @@ const AddDataSourceFieldsModalContent = ({
 	const [expandedKeys, setExpandedKeys] = useState<Array<React.Key>>([]);
 
 	useEffect(() => {
-		console.log('AddDataSourceFieldsModalContent: fields', fields);
 		if (fields) {
 			const [initialSelectedKeys, updatedFields] = initializeFields({
 				fields,
@@ -203,7 +198,6 @@ const AddDataSourceFieldsModalContent = ({
 
 			setSelectedKeys(initialSelectedKeys);
 
-			console.log('AddDataSourceFieldsModalContent: updatedFields', updatedFields);
 			setFields(updatedFields);
 		}
 
