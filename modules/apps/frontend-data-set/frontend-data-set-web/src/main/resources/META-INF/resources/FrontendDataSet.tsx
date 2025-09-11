@@ -90,6 +90,25 @@ import {VIEWS_ACTION_TYPES, viewsReducer} from './views/viewsReducer';
 const DEFAULT_PAGINATION_DELTA = 20;
 const DEFAULT_PAGINATION_PAGE_NUMBER = 1;
 
+const activateFilter = ({filter, preloadedData} : { filter: any, preloadedData: any}) => {
+	if (preloadedData) {
+		filter.active = true;
+		filter.selectedData = preloadedData;
+
+		const filterType: keyof typeof FILTER_IMPLEMENTATIONS = filter.type;
+
+		const filterImplementation =
+			FILTER_IMPLEMENTATIONS[filterType];
+
+		filter.odataFilterString =
+			filterImplementation.getOdataString(filter);
+		filter.selectedItemsLabel =
+			filterImplementation.getSelectedItemsLabel(
+				filter
+			);
+	}
+}
+
 const FrontendDataSetContent = ({
 	actionParameterName,
 	activeViewSettings,
@@ -222,25 +241,9 @@ const FrontendDataSetContent = ({
 
 		const filters = initialFilters
 			? initialFilters.map((filter) => {
-					const preloadedData = filter.preloadedData;
+				activateFilter({filter, preloadedData: filter.preloadedData});
 
-					if (preloadedData) {
-						filter.active = true;
-						filter.selectedData = preloadedData;
-
-						const filterType: keyof typeof FILTER_IMPLEMENTATIONS =
-							filter.type;
-
-						const filterImplementation =
-							FILTER_IMPLEMENTATIONS[filterType];
-
-						filter.odataFilterString =
-							filterImplementation.getOdataString(filter);
-						filter.selectedItemsLabel =
-							filterImplementation.getSelectedItemsLabel(filter);
-					}
-
-					return filter;
+				return filter;
 				})
 			: [];
 
@@ -381,11 +384,16 @@ const FrontendDataSetContent = ({
 								};
 							}
 
-							return {
-								...filter,
-								clientExtensionFilterImplementation:
-									resolution.binding,
-							};
+							filter.clientExtensionFilterImplementation =
+								resolution.binding;
+
+							activateFilter({filter,
+								preloadedData: resolution.binding.preloadedDataBuilder?.({
+									fieldName: filter.id,
+									filter,
+								})
+							});
+
 						}
 
 						return filter;
