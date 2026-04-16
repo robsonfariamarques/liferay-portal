@@ -40,6 +40,7 @@ export type FolderAction = 'copy' | 'move';
 type Folder = {
 	id: number;
 	title: string;
+	scopeId?: number;
 };
 
 type Space = {
@@ -339,6 +340,8 @@ function FolderItemSelectorModalContent({
 	};
 
 	const handleOnItemsChange = (folder: Folder, targetName?: string) => {
+
+
 		const getDuplicateCheckPromise = (item: any) => {
 			const isFolder =
 				item.entryClassName === OBJECT_ENTRY_FOLDER_CLASS_NAME;
@@ -351,8 +354,9 @@ function FolderItemSelectorModalContent({
 				);
 			}
 			else {
+				const url = item.actions['get-by-scope'].href.replace(item.embedded.scopeId, folder.scopeId);
 				return ApiHelper.get(
-					`${item.actions['get-by-scope'].href}?filter=title eq '${(item.title || '').replace(/'/g, "''")}' and folderId eq ${folder.id}`
+					`${url}?filter=title eq '${(item.title || '').replace(/'/g, "''")}' and folderId eq ${folder.id}`
 				);
 			}
 		};
@@ -587,6 +591,7 @@ function FolderItemSelectorModalContent({
 								{
 									id: isFolder ? item.embedded.id : item.id,
 									title: name,
+									scopeId: item.embedded.scopeId,
 								},
 								name
 							);
