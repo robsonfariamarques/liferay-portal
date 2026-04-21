@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
+import { ActionId } from '../types/Action';
 import ApiHelper from './ApiHelper';
 
 async function getCollaborators(collaboratorURL: string, itemId: number) {
 	const {data, error} = await ApiHelper.get<{
 		items: Array<{
-			actionIds: string[];
+			actionIds: ActionId[];
 			creator: {
 				additionalName: string;
 				contentType: string;

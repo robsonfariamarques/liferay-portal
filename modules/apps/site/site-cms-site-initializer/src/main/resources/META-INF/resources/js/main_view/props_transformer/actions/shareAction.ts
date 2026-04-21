@@ -10,6 +10,7 @@ import {openCMSModal} from '../../../common/utils/openCMSModal';
 import ShareModalContent, {
 	Collaborator,
 } from '../../modal/share_modal_content/ShareModalContent';
+import { ACTION_ID } from '../../../common/utils/constants';
 
 export default async function shareAction({
 	autocompleteURL,
@@ -41,7 +42,7 @@ export default async function shareAction({
 			({actionIds, dateExpired, id, name, portrait, share, type}) =>
 				({
 					actionIds: actionIds
-						.filter((actionId) => actionId !== 'DOWNLOAD')
+						.filter((actionId) => actionId !== ACTION_ID.DOWNLOAD)
 						.sort()
 						.join(','),
 					dateExpired,
