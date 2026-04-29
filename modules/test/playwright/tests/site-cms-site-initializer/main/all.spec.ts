@@ -2774,3 +2774,153 @@ test(
 		}
 	}
 );
+
+test(
+	'Content can be searched from the All section',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const uniqueToken = getRandomString();
+		const file1Title = `Findable ${uniqueToken}`;
+		const file2Title = `Other ${getRandomString()}`;
+		let objectEntry1: ObjectEntry;
+		let objectEntry2: ObjectEntry;
+
+		try {
+			await test.step('Create a findable and an unrelated content', async () => {
+				objectEntry1 = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: file1Title,
+					},
+					applicationName,
+					'Default'
+				);
+
+				objectEntry2 = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: file2Title,
+					},
+					applicationName,
+					'Default'
+				);
+
+				await assetsPage.gotoAll();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: file1Title})
+				).toBeVisible();
+				await expect(
+					page.getByRole('cell', {exact: true, name: file2Title})
+				).toBeVisible();
+			});
+
+			await test.step('Search for the unique token', async () => {
+				const searchInput = page.getByPlaceholder('Search');
+
+				await searchInput.fill(uniqueToken);
+				await searchInput.press('Enter');
+			});
+
+			await test.step('Check only the matching content is visible', async () => {
+				await expect(
+					page.getByRole('cell', {exact: true, name: file1Title})
+				).toBeVisible();
+				await expect(
+					page.getByRole('cell', {exact: true, name: file2Title})
+				).not.toBeVisible();
+			});
+		}
+		finally {
+			if (objectEntry1) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(objectEntry1.id)
+				);
+			}
+			if (objectEntry2) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(objectEntry2.id)
+				);
+			}
+		}
+	}
+);
+
+test(
+	'All section pagination supports 20, 40, and 60 items per page',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const seedCount = 21;
+		const token = `Pagination${getRandomString()}`;
+		const objectEntries: ObjectEntry[] = [];
+
+		try {
+			await test.step(`Seed ${seedCount} contents in the Default space`, async () => {
+				for (let i = 0; i < seedCount; i++) {
+					objectEntries.push(
+						await apiHelpers.objectEntry.postObjectEntry(
+							{
+								objectEntryFolderExternalReferenceCode:
+									'L_CONTENTS',
+								title: `${token} ${i}`,
+							},
+							applicationName,
+							'Default'
+						)
+					);
+				}
+			});
+
+			await test.step('Search to scope the listing to the seeded set', async () => {
+				await assetsPage.gotoAll();
+
+				const searchInput = page.getByPlaceholder('Search');
+
+				await searchInput.fill(token);
+				await searchInput.press('Enter');
+			});
+
+			await test.step('Default 20-per-page caps the table at 20 rows', async () => {
+				const itemsPerPageToggle = page.getByLabel('Items Per Page');
+
+				await expect(itemsPerPageToggle).toHaveText(/20 Items/);
+				await expect(assetsPage.table.bodyRows).toHaveCount(20);
+			});
+
+			for (const {delta, expectedRows} of [
+				{delta: 40, expectedRows: seedCount},
+				{delta: 60, expectedRows: seedCount},
+				{delta: 20, expectedRows: 20},
+			]) {
+				await test.step(`Switch to ${delta} per page and verify the row count`, async () => {
+					const itemsPerPageToggle =
+						page.getByLabel('Items Per Page');
+
+					await itemsPerPageToggle.click();
+					await page
+						.getByRole('option', {name: `${delta} Items`})
+						.click();
+
+					await expect(itemsPerPageToggle).toHaveText(
+						new RegExp(`${delta} Items`)
+					);
+					await expect(assetsPage.table.bodyRows).toHaveCount(
+						expectedRows
+					);
+				});
+			}
+		}
+		finally {
+			for (const entry of objectEntries) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(entry.id)
+				);
+			}
+		}
+	}
+);
