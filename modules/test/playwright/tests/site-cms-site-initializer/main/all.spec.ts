@@ -2425,3 +2425,352 @@ test(
 		}
 	}
 );
+
+test(
+	'Content can be filtered by Space',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const file1Title = `Default ${getRandomString()}`;
+		const file2Title = `Other ${getRandomString()}`;
+		const otherSpaceName = `Space ${getRandomString()}`;
+		let objectEntry1: ObjectEntry;
+		let objectEntry2: ObjectEntry;
+		let otherSpace;
+
+		try {
+			await test.step('Create a second space and contents in each', async () => {
+				otherSpace =
+					await apiHelpers.headlessAssetLibrary.createAssetLibrary({
+						name: otherSpaceName,
+						settings: {},
+						type: 'Space',
+					});
+
+				objectEntry1 = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: file1Title,
+					},
+					applicationName,
+					'Default'
+				);
+
+				objectEntry2 = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: file2Title,
+					},
+					applicationName,
+					otherSpaceName
+				);
+
+				await assetsPage.gotoAll();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: file1Title})
+				).toBeVisible();
+				await expect(
+					page.getByRole('cell', {exact: true, name: file2Title})
+				).toBeVisible();
+			});
+
+			await test.step('Apply Space filter for Default', async () => {
+				await page.getByRole('button', {name: 'Filter'}).click();
+
+				await page.getByRole('menuitem', {name: 'Space'}).click();
+
+				await page.getByRole('checkbox', {name: 'Default'}).check();
+
+				await page.getByRole('button', {name: 'Add Filter'}).click();
+			});
+
+			await test.step('Check only the Default space content is visible', async () => {
+				await expect(
+					page
+						.getByRole('button', {name: /Space:/})
+						.locator('.label-section')
+				).toBeVisible();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: file1Title})
+				).toBeVisible();
+				await expect(
+					page.getByRole('cell', {exact: true, name: file2Title})
+				).not.toBeVisible();
+			});
+		}
+		finally {
+			if (objectEntry1) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(objectEntry1.id)
+				);
+			}
+			if (objectEntry2) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(objectEntry2.id)
+				);
+			}
+			if (otherSpace) {
+				await apiHelpers.headlessAssetLibrary.deleteAssetLibrary(
+					otherSpace.id
+				);
+			}
+		}
+	}
+);
+
+test(
+	'Content can be filtered by Type',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page}) => {
+		const contentApplicationName = 'cms/basic-web-contents';
+		const documentApplicationName = 'cms/basic-documents';
+		const contentTitle = `Content ${getRandomString()}`;
+		const documentTitle = `Document ${getRandomString()}`;
+		let contentEntry: ObjectEntry;
+		let documentEntry: ObjectEntry;
+
+		try {
+			await test.step('Create a content and a document', async () => {
+				contentEntry = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: contentTitle,
+					},
+					contentApplicationName,
+					'Default'
+				);
+
+				documentEntry = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						file: {
+							fileBase64: 'R0lGODlhAQABAAAAACw=',
+							name: `file_${getRandomString()}.png`,
+						},
+						objectEntryFolderExternalReferenceCode: 'L_FILES',
+						title: documentTitle,
+					},
+					documentApplicationName,
+					'Default'
+				);
+
+				await assetsPage.gotoAll();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: contentTitle})
+				).toBeVisible();
+				await expect(
+					page.getByRole('cell', {exact: true, name: documentTitle})
+				).toBeVisible();
+			});
+
+			await test.step('Apply Type filter for Basic Web Content', async () => {
+				await page.getByRole('button', {name: 'Filter'}).click();
+
+				await page.getByRole('menuitem', {name: 'Type'}).click();
+
+				await page
+					.getByRole('checkbox', {name: 'Basic Web Content'})
+					.check();
+
+				await page.getByRole('button', {name: 'Add Filter'}).click();
+			});
+
+			await test.step('Check only the content row is visible', async () => {
+				await expect(
+					page
+						.getByRole('button', {name: /Type:/})
+						.locator('.label-section')
+				).toBeVisible();
+
+				await expect(
+					page.getByRole('cell', {
+						exact: true,
+						name: contentTitle,
+					})
+				).toBeVisible();
+				await expect(
+					page.getByRole('cell', {
+						exact: true,
+						name: documentTitle,
+					})
+				).not.toBeVisible();
+			});
+		}
+		finally {
+			if (contentEntry) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					contentApplicationName,
+					String(contentEntry.id)
+				);
+			}
+			if (documentEntry) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					documentApplicationName,
+					String(documentEntry.id)
+				);
+			}
+		}
+	}
+);
+
+test(
+	'Content can be filtered by Author',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const fileTitle = `Authored ${getRandomString()}`;
+		let objectEntry: ObjectEntry;
+
+		try {
+			await test.step('Create a content', async () => {
+				objectEntry = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: fileTitle,
+					},
+					applicationName,
+					'Default'
+				);
+
+				await assetsPage.gotoAll();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: fileTitle})
+				).toBeVisible();
+			});
+
+			await test.step('Apply Author filter', async () => {
+				await page.getByRole('button', {name: 'Filter'}).click();
+
+				await page.getByRole('menuitem', {name: 'Author'}).click();
+
+				await page.getByRole('checkbox', {name: 'Test Test'}).check();
+
+				await page.getByRole('button', {name: 'Add Filter'}).click();
+			});
+
+			await test.step('Check filter chip and entry are visible', async () => {
+				await expect(
+					page
+						.getByRole('button', {name: /Author:/})
+						.locator('.label-section')
+				).toBeVisible();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: fileTitle})
+				).toBeVisible();
+			});
+		}
+		finally {
+			if (objectEntry) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(objectEntry.id)
+				);
+			}
+		}
+	}
+);
+
+test(
+	'Content can be filtered by Status',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const token = `Status${getRandomString()}`;
+
+		const future = new Date();
+		future.setDate(future.getDate() + 1);
+
+		const entries: {data: DataObject; label: string; title: string}[] = [
+			{
+				data: {},
+				label: 'Approved',
+				title: `${token} Approved`,
+			},
+			{
+				data: {status: {code: 2}},
+				label: 'Draft',
+				title: `${token} Draft`,
+			},
+			{
+				data: {displayDate: future.toISOString()},
+				label: 'Scheduled',
+				title: `${token} Scheduled`,
+			},
+		];
+		const objectEntries: ObjectEntry[] = [];
+
+		try {
+			await test.step('Seed one content per status', async () => {
+				for (const entry of entries) {
+					objectEntries.push(
+						await apiHelpers.objectEntry.postObjectEntry(
+							{
+								...entry.data,
+								objectEntryFolderExternalReferenceCode:
+									'L_CONTENTS',
+								title: entry.title,
+							},
+							applicationName,
+							'Default'
+						)
+					);
+				}
+			});
+
+			for (const entry of entries) {
+				await test.step(`Apply Status filter for ${entry.label}`, async () => {
+					await assetsPage.gotoAll();
+
+					await page.getByRole('button', {name: 'Filter'}).click();
+					await page.getByRole('menuitem', {name: 'Status'}).click();
+					await page
+						.getByRole('checkbox', {name: entry.label})
+						.check();
+					await page
+						.getByRole('button', {name: 'Add Filter'})
+						.click();
+
+					await expect(
+						page
+							.getByRole('button', {name: /Status:/})
+							.locator('.label-section')
+					).toBeVisible();
+
+					await expect(
+						page.getByRole('cell', {
+							exact: true,
+							name: entry.title,
+						})
+					).toBeVisible();
+
+					for (const otherEntry of entries) {
+						if (otherEntry.label === entry.label) {
+							continue;
+						}
+
+						await expect(
+							page.getByRole('cell', {
+								exact: true,
+								name: otherEntry.title,
+							})
+						).not.toBeVisible();
+					}
+				});
+			}
+		}
+		finally {
+			for (const entry of objectEntries) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(entry.id)
+				);
+			}
+		}
+	}
+);
