@@ -3112,3 +3112,206 @@ test(
 		}
 	}
 );
+
+test(
+	'Space filter shows only spaces the user has access to',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page, spaceSummaryPage}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const accessibleSpaceTitle = `Accessible ${getRandomString()}`;
+		const restrictedSpaceName = `Restricted ${getRandomString()}`;
+		const restrictedSpaceTitle = `Restricted ${getRandomString()}`;
+		let accessibleEntry;
+		let restrictedEntry;
+		let restrictedSpace;
+		let user;
+
+		try {
+			await test.step('Create a restricted space and a content in each space', async () => {
+				restrictedSpace =
+					await apiHelpers.headlessAssetLibrary.createAssetLibrary({
+						name: restrictedSpaceName,
+						settings: {},
+						type: 'Space',
+					});
+
+				accessibleEntry = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: accessibleSpaceTitle,
+					},
+					applicationName,
+					'Default'
+				);
+
+				restrictedEntry = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: restrictedSpaceTitle,
+					},
+					applicationName,
+					restrictedSpaceName
+				);
+			});
+
+			await test.step('Create a user and add only to the Default space', async () => {
+				user = await apiHelpers.headlessAdminUser.postUserAccount();
+
+				userData[user.alternateName] = {
+					name: user.givenName,
+					password: 'test',
+					surname: user.familyName,
+				};
+
+				await spaceSummaryPage.goto('Default');
+				await spaceSummaryPage.addUserOrUserGroup(user.name, 'users');
+			});
+
+			await test.step('Log in as the space member and open the Space filter', async () => {
+				await performLogout(page);
+				await performLogin(page, user.alternateName);
+
+				await assetsPage.gotoAll();
+
+				await expect(
+					page.getByRole('cell', {
+						exact: true,
+						name: accessibleSpaceTitle,
+					})
+				).toBeVisible();
+
+				await page.getByRole('button', {name: 'Filter'}).click();
+				await page.getByRole('menuitem', {name: 'Space'}).click();
+			});
+
+			await test.step('Verify only the accessible space is listed', async () => {
+				await expect(
+					page.getByRole('checkbox', {name: 'Default'})
+				).toBeVisible();
+				await expect(
+					page.getByRole('checkbox', {name: restrictedSpaceName})
+				).not.toBeVisible();
+			});
+		}
+		finally {
+			await performLogout(page);
+			await performLogin(page, 'test');
+
+			if (accessibleEntry) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(accessibleEntry.id)
+				);
+			}
+			if (restrictedEntry) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(restrictedEntry.id)
+				);
+			}
+			if (restrictedSpace) {
+				await apiHelpers.headlessAssetLibrary.deleteAssetLibrary(
+					restrictedSpace.id
+				);
+			}
+		}
+	}
+);
+
+test(
+	'Author filter can be applied by a Space Content Reviewer',
+	{tag: ['@LPD-85551', '@LPD-87956']},
+	async ({apiHelpers, assetsPage, page, spaceSummaryPage}) => {
+		const applicationName = 'cms/basic-web-contents';
+		const fileTitle = `Reviewable ${getRandomString()}`;
+		const spaceName = `Reviewable ${getRandomString()}`;
+		let objectEntry;
+		let space;
+		let user;
+
+		try {
+			await test.step('Create a space, content, and a Space Content Reviewer user', async () => {
+				space =
+					await apiHelpers.headlessAssetLibrary.createAssetLibrary({
+						name: spaceName,
+						settings: {},
+						type: 'Space',
+					});
+
+				objectEntry = await apiHelpers.objectEntry.postObjectEntry(
+					{
+						objectEntryFolderExternalReferenceCode: 'L_CONTENTS',
+						title: fileTitle,
+					},
+					applicationName,
+					spaceName
+				);
+
+				user = await apiHelpers.headlessAdminUser.postUserAccount();
+
+				userData[user.alternateName] = {
+					name: user.givenName,
+					password: 'test',
+					surname: user.familyName,
+				};
+
+				await spaceSummaryPage.goto(spaceName);
+				await spaceSummaryPage.addUserOrUserGroup(user.name, 'users');
+				await spaceSummaryPage.addRoleToSpaceMember(
+					'Space Content Reviewer',
+					user.name
+				);
+			});
+
+			await test.step('Log in as the reviewer and apply the Author filter', async () => {
+				await performLogout(page);
+				await performLogin(page, user.alternateName);
+
+				await assetsPage.gotoAll();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: fileTitle})
+				).toBeVisible();
+
+				await page.getByRole('button', {name: 'Filter'}).click();
+				await page.getByRole('menuitem', {name: 'Author'}).click();
+
+				await expect(
+					page.getByRole('checkbox', {name: 'Test Test'})
+				).toBeVisible();
+
+				await page.getByRole('checkbox', {name: 'Test Test'}).check();
+
+				await page.getByRole('button', {name: 'Add Filter'}).click();
+			});
+
+			await test.step('Verify the filter chip and content are visible', async () => {
+				await expect(
+					page
+						.getByRole('button', {name: /Author:/})
+						.locator('.label-section')
+				).toBeVisible();
+
+				await expect(
+					page.getByRole('cell', {exact: true, name: fileTitle})
+				).toBeVisible();
+			});
+		}
+		finally {
+			await performLogout(page);
+			await performLogin(page, 'test');
+
+			if (objectEntry) {
+				await apiHelpers.objectEntry.deleteObjectEntry(
+					applicationName,
+					String(objectEntry.id)
+				);
+			}
+			if (space) {
+				await apiHelpers.headlessAssetLibrary.deleteAssetLibrary(
+					space.id
+				);
+			}
+		}
+	}
+);
