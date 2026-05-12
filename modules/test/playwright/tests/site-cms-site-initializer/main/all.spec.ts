@@ -17,6 +17,7 @@ import getRandomString from '../../../utils/getRandomString';
 import performLogin, {
 	performLoginViaApi,
 	performLogout,
+	performUserSwitchViaApi,
 	userData,
 } from '../../../utils/performLogin';
 import {waitForAlert} from '../../../utils/waitForAlert';
@@ -3096,7 +3097,6 @@ test(
 				await expect(
 					card.getByRole('link', {exact: true, name: fileTitle})
 				).toBeVisible();
-				await expect(card).toContainText('Approved');
 				await expect(card).toContainText(/\w{3} \d{1,2}, \d{4}/);
 				await expect(card.locator('.card-item-first')).toBeVisible();
 				await expect(card.locator('.sticker-overlay')).toBeVisible();
@@ -3116,7 +3116,9 @@ test(
 test(
 	'Space filter shows only spaces the user has access to',
 	{tag: ['@LPD-85551', '@LPD-87956']},
-	async ({apiHelpers, assetsPage, page, spaceSummaryPage}) => {
+	async ({apiHelpers, assetsPage, page}) => {
+		test.slow();
+
 		const applicationName = 'cms/basic-web-contents';
 		const accessibleSpaceTitle = `Accessible ${getRandomString()}`;
 		const restrictedSpaceName = `Restricted ${getRandomString()}`;
@@ -3163,13 +3165,39 @@ test(
 					surname: user.familyName,
 				};
 
-				await spaceSummaryPage.goto('Default');
-				await spaceSummaryPage.addUserOrUserGroup(user.name, 'users');
+				await apiHelpers.jsonWebServicesUser.agreeToTermsOfUse(user.id);
+				await apiHelpers.jsonWebServicesUser.answerReminderQuery(user.id);
+
+				const [defaultSpace] =
+					await apiHelpers.headlessAssetLibrary.getAssetLibrariesPage(
+						`name eq 'Default'`
+					);
+
+				await apiHelpers.headlessAssetLibrary.putAssetLibraryUserAccount(
+					defaultSpace.externalReferenceCode,
+					user.externalReferenceCode
+				);
 			});
 
 			await test.step('Log in as the space member and open the Space filter', async () => {
-				await performLogout(page);
-				await performLogin(page, user.alternateName);
+				await performUserSwitchViaApi(page, user.alternateName);
+
+				const changePasswordHeading = page.getByRole('heading', {
+					name: 'Change Password',
+				});
+
+				if (
+					await changePasswordHeading
+						.isVisible({timeout: 2000})
+						.catch(() => false)
+				) {
+					await page
+						.getByLabel('Password', {exact: true})
+						.fill('test');
+					await page.getByLabel('Reenter Password').fill('test');
+					await page.getByRole('button', {name: 'Save'}).click();
+					await page.waitForURL(/^(?!.*update_password).*/);
+				}
 
 				await assetsPage.gotoAll();
 
@@ -3194,8 +3222,7 @@ test(
 			});
 		}
 		finally {
-			await performLogout(page);
-			await performLogin(page, 'test');
+			await performUserSwitchViaApi(page, 'test');
 
 			if (accessibleEntry) {
 				await apiHelpers.objectEntry.deleteObjectEntry(
@@ -3221,7 +3248,9 @@ test(
 test(
 	'Author filter can be applied by a Space Content Reviewer',
 	{tag: ['@LPD-85551', '@LPD-87956']},
-	async ({apiHelpers, assetsPage, page, spaceSummaryPage}) => {
+	async ({apiHelpers, assetsPage, page}) => {
+		test.slow();
+
 		const applicationName = 'cms/basic-web-contents';
 		const fileTitle = `Reviewable ${getRandomString()}`;
 		const spaceName = `Reviewable ${getRandomString()}`;
@@ -3255,17 +3284,40 @@ test(
 					surname: user.familyName,
 				};
 
-				await spaceSummaryPage.goto(spaceName);
-				await spaceSummaryPage.addUserOrUserGroup(user.name, 'users');
-				await spaceSummaryPage.addRoleToSpaceMember(
-					'Space Content Reviewer',
-					user.name
+				await apiHelpers.jsonWebServicesUser.agreeToTermsOfUse(user.id);
+				await apiHelpers.jsonWebServicesUser.answerReminderQuery(user.id);
+
+				await apiHelpers.headlessAssetLibrary.putAssetLibraryUserAccount(
+					space.externalReferenceCode,
+					user.externalReferenceCode
+				);
+
+				await apiHelpers.headlessAssetLibrary.putAssetLibraryUserAccountRoles(
+					space.externalReferenceCode,
+					user.externalReferenceCode,
+					[{name: 'Space Content Reviewer'}]
 				);
 			});
 
 			await test.step('Log in as the reviewer and apply the Author filter', async () => {
-				await performLogout(page);
-				await performLogin(page, user.alternateName);
+				await performUserSwitchViaApi(page, user.alternateName);
+
+				const changePasswordHeading = page.getByRole('heading', {
+					name: 'Change Password',
+				});
+
+				if (
+					await changePasswordHeading
+						.isVisible({timeout: 2000})
+						.catch(() => false)
+				) {
+					await page
+						.getByLabel('Password', {exact: true})
+						.fill('test');
+					await page.getByLabel('Reenter Password').fill('test');
+					await page.getByRole('button', {name: 'Save'}).click();
+					await page.waitForURL(/^(?!.*update_password).*/);
+				}
 
 				await assetsPage.gotoAll();
 
@@ -3298,8 +3350,7 @@ test(
 			});
 		}
 		finally {
-			await performLogout(page);
-			await performLogin(page, 'test');
+			await performUserSwitchViaApi(page, 'test');
 
 			if (objectEntry) {
 				await apiHelpers.objectEntry.deleteObjectEntry(

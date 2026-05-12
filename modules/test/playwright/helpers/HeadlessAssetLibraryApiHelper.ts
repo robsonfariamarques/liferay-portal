@@ -60,4 +60,24 @@ export class HeadlessAssetLibraryApiHelper {
 			`${this.apiHelpers.baseUrl}${this.basePath}/asset-libraries/${externalReferenceCode}`
 		);
 	}
+
+	async putAssetLibraryUserAccount(
+		assetLibraryERC: string,
+		userAccountERC: string
+	) {
+		return this.apiHelpers.put(
+			`${this.apiHelpers.baseUrl}${this.basePath}/asset-libraries/${assetLibraryERC}/user-accounts/${userAccountERC}`
+		);
+	}
+
+	async putAssetLibraryUserAccountRoles(
+		assetLibraryERC: string,
+		userAccountERC: string,
+		roles: {name: string}[]
+	) {
+		return this.apiHelpers.put(
+			`${this.apiHelpers.baseUrl}${this.basePath}/asset-libraries/${assetLibraryERC}/user-accounts/${userAccountERC}/roles`,
+			{data: JSON.stringify(roles)}
+		);
+	}
 }
